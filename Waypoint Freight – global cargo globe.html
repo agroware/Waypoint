@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Waypoint Freight – global cargo globe</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#03050a;--ink:#e8ecf5;--mute:#8591a8;--line:rgba(160,180,255,.15);--pane:rgba(8,12,22,.74);--hot:#ff5a4f;--gold:#ffcf8a;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(ellipse at 60% 45%,#0b1226,var(--bg) 70%);color:var(--ink);font:13px/1.45 Manrope,system-ui,sans-serif;overflow:hidden}
+#stage{position:fixed;inset:0;touch-action:none;cursor:grab}
+#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.pl{position:absolute;left:0;top:0;font-size:10px;color:#c9d3ea;opacity:.8;white-space:nowrap;text-shadow:0 0 5px #000,0 0 2px #000}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;text-align:left;padding:0}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.glass{background:var(--pane);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(14px)}
+#hud{position:fixed;left:18px;top:calc(18px + env(safe-area-inset-top,0px));width:300px;max-height:calc(100% - 100px);overflow:auto;padding:16px}
+.brand{font-weight:800;font-size:17px;letter-spacing:-.02em}.brand span{color:var(--gold);font-weight:600;margin-left:7px}
+#kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+.k{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.k b{display:block;font:500 17px "JetBrains Mono",monospace}.k small{color:var(--mute);font-size:11px}
+.h{display:flex;justify-content:space-between;color:var(--mute);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px}
+.cg{display:block;width:100%;padding:5px 0}.cg.off{opacity:.35}
+.cg .t{display:flex;justify-content:space-between;gap:8px}.cg .t i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+.cg .t em{font:500 12px "JetBrains Mono",monospace;font-style:normal}
+.tr{height:4px;border-radius:2px;background:rgba(255,255,255,.07);margin-top:4px;overflow:hidden}.tr i{display:block;height:100%}
+.fine{color:var(--mute);font-size:11px;margin:12px 0 0}
+#card{position:fixed;right:18px;top:calc(18px + env(safe-area-inset-top,0px));width:330px;max-height:calc(100% - 100px);overflow:auto;padding:18px}
+#card[hidden]{display:none}
+#card h2{margin:4px 0 2px;font-size:24px;font-weight:800;letter-spacing:-.02em}
+#card .tag{font:500 11px "JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.05em}
+#card .rt{color:var(--mute);margin-bottom:10px}
+#x{position:absolute;right:10px;top:8px;font-size:20px;color:var(--mute);padding:4px 8px}
+.pb{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}.pb i{display:block;height:100%;background:var(--gold)}
+.sm{color:var(--mute);font-size:11px;margin:5px 0 10px}
+dl{margin:0;display:grid;grid-template-columns:104px 1fr;gap:7px 8px}dt{color:var(--mute)}dd{margin:0;font:12px "JetBrains Mono",monospace;word-break:break-word}
+.lg{display:flex;gap:14px;margin-top:12px;color:var(--mute);font-size:11px;align-items:center}
+.lg i{display:inline-block;width:22px;height:0;margin-right:6px;vertical-align:middle}
+.fl{margin-top:12px;border:1px solid var(--line);border-radius:999px;padding:6px 14px;display:inline-block}
+.fl[aria-pressed=true]{border-color:var(--gold);color:var(--gold)}
+#bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;padding:8px 12px}
+#clock{font:500 13px "JetBrains Mono",monospace;padding:0 8px}
+#bar button{padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mute);font-size:12px}
+#bar button.on{color:#1a1205;background:var(--gold);border-color:var(--gold)}
+@media (max-width:760px){
+#hud{left:10px;right:10px;width:auto;max-height:36%;padding:12px}#kpi{margin:8px 0}.hide-m{display:none}
+#card{left:10px;right:10px;width:auto;top:auto;bottom:calc(70px + env(safe-area-inset-bottom,0px));max-height:42%}
+#bar{width:calc(100% - 20px);justify-content:space-between;gap:4px;padding:6px 8px}#clock{font-size:11px;padding:0}#bar button{padding:5px 8px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="labels"></div>
+<aside id="hud" class="glass">
+  <div class="brand">Waypoint<span>Freight</span></div>
+  <div id="kpi"></div>
+  <div class="h hide-m"><span>Cargo by commodity</span><span>est. value</span></div>
+  <div id="cg" class="hide-m"></div>
+  <div class="h hide-m"><span>Asia–Europe routing</span></div>
+  <div id="lane" class="hide-m"></div>
+  <p class="fine hide-m">Illustrative fleet on real trade lanes. Positions are simulated from schedules, not live AIS. Values use round-number price assumptions.</p>
+</aside>
+<section id="card" class="glass" hidden aria-live="polite"></section>
+<div id="bar" class="glass">
+  <button id="pp" aria-label="Pause or play">Pause</button>
+  <span id="clock"></span>
+  <button data-s="1">Live</button><button data-s="3600">1h/s</button><button data-s="21600" class="on">6h/s</button><button data-s="86400">1d/s</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $=s=>document.querySelector(s),V3=THREE.Vector3,D=Math.PI/180,R=5,NM=3440.065;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ll=(lat,lon,r=R)=>new V3(r*Math.cos(lat*D)*Math.sin(lon*D),r*Math.sin(lat*D),r*Math.cos(lat*D)*Math.cos(lon*D));
+const LAND=[
+[-168,65.6,-164,68.8,-156,71.3,-141,69.7,-128,70.3,-115,68.5,-108,68,-98,68.5,-94,72,-90,69,-85,69.5,-82,67,-88,64,-93,61.5,-94.5,59,-92.5,57,-88,56,-82,55,-80,52,-79,51.3,-78.5,54.5,-77,56,-78,58.5,-77.5,60,-73,62,-70,61,-66,58.5,-62,57.5,-61.5,56,-57,53,-56,52,-60,50.2,-66,50.2,-64.5,47.5,-61,45.8,-66,43.8,-67,45,-67.4,45.1,-68.5,44.3,-70.2,43.6,-70.5,41.8,-71.4,41.5,-74,40.6,-74.9,38.9,-75.9,37.1,-75.7,35.6,-77,34.6,-78.5,33.8,-79.9,32.7,-81.1,31.9,-81.3,29.9,-80.5,28.4,-80,26.8,-80.5,25.2,-81.1,25.2,-81.8,26.1,-82.8,28.9,-84.3,30,-86.5,30.4,-89.4,30.2,-89.6,29.3,-91.9,29.5,-93.8,29.7,-96.5,28.3,-97.4,25.9,-97.7,22,-96.3,19,-94.5,18.2,-91,18.7,-90.4,21,-87,21.5,-87.5,18.5,-88.2,16,-84.5,15.8,-83.3,15,-83.7,11,-82.2,9,-79.5,9.5,-77.4,8.6,-78.5,7.2,-79.9,8.2,-83,8.3,-85.7,10,-87.3,13,-91.4,14,-94.5,16,-97.5,15.8,-101.5,17.3,-105.5,19.7,-105.5,22,-108,25.2,-109.5,27.2,-112.5,29.5,-114.8,31.7,-114.8,30,-112.8,27,-110,23.3,-109.4,23.1,-112,24.8,-114.5,28.2,-116,30.5,-117.1,32.5,-118.4,33.7,-120.6,34.6,-121.9,36.6,-122.5,37.8,-123.7,39,-124.4,40.4,-124.1,42,-124.1,46.2,-124.7,48.4,-127,50.8,-130.5,54.3,-134,57.5,-137.5,58.8,-141,60.3,-146,60.3,-150,59.2,-154,57.5,-158,56,-163,54.7,-158,58.7,-162,59.8,-165,60.5,-165,62.5,-161,64.5,-166,65.8],
+[-73,78,-60,82,-30,83.5,-20,80,-18,76,-22,70,-32,68,-42,60,-48,61,-53,66,-56,70,-68,76],
+[-90,73.5,-80,73.7,-70,71,-62,67,-64,63,-68,62.2,-74,64.3,-78,65,-73,68,-82,69.3,-88,70.5],
+[-90,76.5,-75,78.5,-62,82,-80,83,-92,81],[-118,71,-105,73,-101,70,-110,68.5],[-59.3,47.6,-56,51.5,-52.7,49.5,-53.5,46.7,-56,47.5],
+[-85,22,-82,23.2,-77,21.7,-74.2,20.2,-77.5,19.9,-80,21.5],[-74.4,18.4,-72.5,19.9,-69.9,19.7,-68.4,18.5,-71.5,17.7],
+[-77.4,8.6,-75.5,10.7,-72,12,-71.5,10.5,-68,10.5,-64,10.5,-61,10.6,-60,8.5,-57,6,-52,5,-51,4,-50,1.5,-48,-1,-44,-2.5,-40,-3,-35,-5.2,-35,-8.5,-37.5,-12,-39,-17,-40,-20,-42,-23,-45,-23.8,-48.5,-26,-49,-28.5,-52,-32,-54,-34.5,-57,-35,-57.5,-38,-62,-39,-65,-41,-64,-42.5,-65.5,-45,-67.5,-46.5,-66,-48,-69,-51,-68.5,-52.5,-71,-53.7,-73.5,-52,-75.5,-47.5,-73.5,-43,-73.5,-37,-71.5,-30,-70.5,-23,-70.3,-18.5,-76,-14,-79,-8,-81.2,-5.5,-80,-2.5,-80,0.5,-78.5,2,-77.5,4],
+[-17,21,-16,14.5,-17.5,14.7,-16.5,12,-13.5,9.5,-10.5,6.5,-7.5,4.4,-2,4.8,2,6.2,5,5.8,8.5,4.5,9.7,3.8,9.5,1,9.3,-1,12,-5,13.5,-9,13.5,-12,12,-17,14.5,-22.5,15,-27,17,-30.5,18.3,-34,20,-34.8,25.5,-34,28,-32.7,31,-29.8,32.8,-26,35.5,-24,35.3,-21,34.7,-19.7,37,-17.3,40.5,-15,40.5,-11,39.3,-8,39,-5,41,-1.5,43.5,1.5,46,2,49,6,51.3,10.5,48,11.2,44,10.5,43.2,11.6,41,14.5,39.5,15.5,37.2,19,35.5,24,34,27.5,32.6,30,31,31.5,29,30.9,25,31.7,20,30.9,15,32.3,11,33.2,10.2,36.9,8,37,3,36.8,-1.5,35.5,-5.5,35.8,-9.5,31,-10.5,28.5,-13,27.5,-15.5,24],
+[32.6,30,34.3,31.3,35,29.5,34,27.8,33.4,28.5],
+[43.3,-24,43.7,-20,44.5,-16.2,47,-14,49.5,-12.3,50.4,-15.5,49.7,-17.5,47.5,-24.9,45.2,-25.5],
+[-9.3,43.1,-9,39,-8.9,37,-6.3,36.2,-5.3,36.1,-2,36.7,0,38.7,-0.3,39.5,3.3,42,3.2,43.3,6,43.1,8.8,44.4,10.2,43.8,12,41.5,15.8,40,15.7,38,17.1,39,16.5,40.5,18.5,40.2,16,41.9,13.7,43.6,12.3,44.5,12.4,45.5,13.7,45.6,15,44.2,19,41.9,19.5,40,20,39.7,21,38,21.7,36.8,23.2,36.4,24,38,22.9,40.5,24.5,40.9,26.2,40.7,26.5,39.5,26.4,38.2,27.4,37,28.5,36.7,30.5,36.4,32,36.3,34.5,36.7,36.2,36.8,36,35,35.8,34,35,32.8,34.3,31.3,34.9,29.5,36.5,26,38.5,23.5,39.5,21.5,42,17,43.2,13,45,12.8,49,14,52,16,55,17.4,57.5,19.5,59.8,22.5,58.5,23.6,56.4,25.3,56.3,26.4,55.5,25.4,54,24.2,52.6,24.2,51.5,24.6,51.2,26,50.2,26.3,49.6,27,48.6,28.8,48,29.9,49.2,30.3,50.2,29.9,50.8,28.8,52,27.5,54.5,26.6,56.3,27.1,57.3,25.7,61.5,25.1,66.5,25.4,67.4,24,68.8,22.4,70.5,20.9,72.8,21,72.8,19,73.5,16,74.8,12.9,76.2,9.5,77.5,8.1,78.2,8.8,79.8,10.3,80.2,13,80.3,15.7,82.3,17,85,19.5,87,21.5,89,21.8,91.8,22.5,92.5,20.5,94.5,17,97.5,16.5,98.5,12,98.3,8,100.1,6.4,101.3,3.5,103.4,1.4,104.2,1.5,103.4,4.5,102.2,6.2,100.4,7.2,99.9,9.5,99.2,10.5,100,13,100.9,13.4,102.5,12,103,11,105,8.7,106.7,10.4,109.2,11.5,109.3,13.5,108.8,15.5,106.5,17.5,105.8,19,106.7,20.7,108,21.5,109.5,21.4,111,21.5,113,22.2,116,22.8,118,24.5,119.5,26,121.5,28.5,121.9,30.8,120.8,32.3,119.5,34.5,120.5,36,122.5,37,119,37.3,118,38.5,117.7,39,119.5,39.8,121.5,40.8,122.3,40.5,121.5,39,124.5,39.8,125,38,126.5,37.5,126.4,34.5,128.5,34.8,129.4,35.2,129.4,37,128.4,38.6,127.6,39.4,129.7,41,130.5,42.3,132,43,135,43.7,138,46,140.5,48,141.2,52.5,140.5,53.5,138,54.5,135,54.8,138.5,56,142,59,150,59.5,155,59.5,160,61.5,163,62.3,170,60,174,61.5,178,64.5,179.9,65.5,179.9,68.5,177,68.3,170,69.7,160,69.5,150,71.5,140,72.8,130,71,128,73.5,113,73.7,107,77.7,104,77.7,100,76.3,95,76,87,74.5,80,73.6,72,73,69,73,66,69.2,60,68.8,54,68.5,44,68.5,41,67,40,66,34,66.5,33,69.3,28,71,23,70.5,18.5,70,15,68.5,12,65.5,8,63,5,61,5.5,58.8,8,58,10.5,59.5,11.5,58.5,12.8,56,13,55.4,11,54.1,8.6,54,8.5,53.5,7,53.3,4.5,52.9,4.2,52,3.2,51.3,1.7,50.9,1.5,49.9,-1.5,49.6,-1.8,48.7,-4.7,48.5,-4.5,47.8,-2.5,47.3,-1.2,46,-1.3,44.5,-1.8,43.4,-4,43.4,-8,43.7],
+[-5.7,50,-3,50.6,1.4,51.1,1.7,52.7,0.3,53.5,-1.5,55,-2,56.2,-1.8,57.6,-3.5,58.6,-5,58.6,-6,57,-5.5,55.5,-4.8,54.8,-3,54.9,-3.1,53.4,-4.6,53.3,-4.2,52.2,-5.3,51.7,-3.2,51.4,-4.5,50.3],
+[-10,51.6,-6.2,52.2,-6,54,-5.6,54.7,-7.3,55.3,-9.5,54.3,-10,53],[-24,65.5,-22,66.4,-16,66.5,-13.5,65,-18,63.4,-22,63.8],
+[130.9,34,132.5,35,136,35.7,139.8,38,141.5,41.3,141.8,39.5,140.9,36,139.8,35,136.8,34.3,135,33.5,132.5,34],[140,41.5,141.5,45.4,145.5,43.3,143,42],[129.8,33.3,131.8,33.7,131.2,31.2,130.2,31.3],
+[120.1,22.8,121.5,25.2,122,24.5,120.9,22],[108.7,19.2,110.5,20,111,19.5,109.5,18.2],[79.8,9.5,81.8,7.5,80.5,6,79.8,7.5],[142,46,143.5,49,143,54.2,142,53.5],
+[95.3,5.6,98.5,4,100.5,2,103.7,-1,106,-3.2,105.9,-5.9,103,-4.5,100.3,-1.5,97,2.5],[109,1.5,111.2,2.5,113,3.3,115,5,117.5,7,119,5.2,117.7,1,116.5,-3.5,114.5,-4,111.5,-3,110,-1.5,109,0.5],
+[105.2,-6.8,108.5,-6.4,111,-6.5,114.5,-7.7,114,-8.5,110,-8.2,106,-7.4],[119.5,-5.5,120.4,-2.8,119.8,0.5,121,1.4,125,1.5,123,-0.8,121.5,-1.5,122.5,-4.5,121,-4,120.5,-5.6],
+[131,-0.8,134,-0.8,138,-1.8,141,-2.6,145.5,-5,147.5,-6.5,150.5,-10.5,148,-10,144,-7.8,141,-9,138,-8.3,137.5,-5,134,-3.5,132,-2.8],
+[120.3,16.5,120.5,18.5,122.2,18.5,122,16.2,121.6,14.2,120.6,14.1,120.3,15],[122,7,123.5,8.5,126.5,8.5,126.2,6.5,125.3,5.7,123.5,7],
+[113.2,-22,114,-26,115,-30,115,-34,117.8,-35,123.5,-34,126,-32.3,131,-31.5,134,-32.8,137.8,-33,140,-37.7,144,-38.4,146.3,-39,148.2,-37.8,150,-37,151.3,-33.8,153,-30,153.6,-28.2,153,-25,150.5,-22.5,148.5,-20,146,-18.5,145.5,-15,143.5,-14,142.5,-10.7,141.5,-13,141.5,-16.5,140.3,-17.7,139,-17.2,136,-15.5,135.5,-14.5,136.8,-12.3,132.5,-11.5,130.5,-12.3,129.8,-14.8,127.5,-14,125.5,-14.5,123,-17,121.5,-19,119,-20,116,-20.7,114,-22.3],
+[144.7,-40.7,148.3,-40.9,148,-43.2,146,-43.6],[172.7,-34.4,174.5,-36,178.5,-37.7,177,-39.5,175,-41.6,174.8,-39.8,173.8,-39.2,174.5,-37.5],[172.7,-40.5,174,-41.7,171,-44.5,170.5,-46,166.5,-46,167.5,-44,171.5,-41.5],
+[52,71.5,58,75.5,68,77,57,70.7],[32.3,35,34.5,35.7,34,34.9],[12.4,38,15.6,38.3,15.2,36.7],[8.2,41,9.7,41,9.6,39.2,8.5,39],[23.5,35.5,26.3,35.3,24,35]];
+const WATER=[
+[27.5,41.9,28.5,44,30,45.5,33,46,33.5,44.5,35.5,45,39,45,41.5,42.5,41.5,41.3,38,41,35,42,31,41.2,28.3,41.4],
+[47,45,49,46.8,53,46.8,54,44,53.2,41.2,54,37.3,51,36.7,49.2,38,48,41.5,47.5,43],
+[10.5,54.6,14,54,19.5,54.4,21,56,21.5,57.5,23.5,57.2,24,59.3,29,60,25,60.3,21.5,60.5,21.5,63,25,65.3,22,65.8,17.5,62,17.2,60,18.5,59,16.7,57.2,14.5,56,12.7,55.6,11,55.7],
+[-87.6,41.7,-87.8,43.5,-87.5,45.8,-85,46,-85.5,44.7,-86.4,43,-86.6,42],[-92,46.8,-90,48,-88.5,48.5,-86,48.7,-85,47,-84.7,46.5,-87.4,46.5,-88.5,47.5,-90.5,46.6],
+[-84.5,45.9,-83.5,46,-81.5,46.2,-80.5,45.5,-81.7,44,-82.5,43.2,-83.5,43.9,-83.4,45.2,-84.7,45.7],[-83.3,41.7,-82,42.6,-79,42.9,-79,42.2,-81,41.5]];
+
+
+// ---------- data ----------
+const CG={box:{n:'Containers',c:'#7aa2ff',u:'TEU',p:35000,t:11,pl:'$35,000 per TEU'},oil:{n:'Crude oil',c:'#ff8a4f',u:'bbl',p:75,t:.136,pl:'$75 per barrel'},ore:{n:'Iron ore',c:'#c58bff',u:'t',p:100,t:1,pl:'$100 per tonne'},soy:{n:'Soybeans',c:'#6fe0b0',u:'t',p:420,t:1,pl:'$420 per tonne'},lng:{n:'LNG',c:'#4fd8ff',u:'t',p:600,t:1,pl:'$600 per tonne'}};
+const PORTS={SHA:['Shanghai',30.62,122.07,55.06],SIN:['Singapore',1.26,103.84,44.66],NGB:['Ningbo-Zhoushan',29.93,121.85,43.87],SZX:['Shenzhen',22.5,114.1,35.41],TAO:['Qingdao',36.07,120.3,32.89],BSN:['Busan',35.1,129.04],HKG:['Hong Kong',22.3,114.15],LAX:['Los Angeles–Long Beach',33.73,-118.26],RTM:['Rotterdam',51.95,4.05],ANR:['Antwerp-Bruges',51.3,4.3],HAM:['Hamburg',53.54,9.97],JEA:['Jebel Ali',25,55.06],PKG:['Port Klang',3,101.37],NYC:['New York–New Jersey',40.67,-74.04],SAV:['Savannah',32.08,-81.09],SSZ:['Santos',-23.98,-46.3],DUR:['Durban',-29.87,31.03],CMB:['Colombo',6.95,79.85],NSA:['Nhava Sheva',18.95,72.95],PIR:['Piraeus',37.94,23.63],TNG:['Tanger Med',35.89,-5.5],PSD:['Port Said',31.26,32.3],PHE:['Port Hedland',-20.31,118.58],RTA:['Ras Tanura',26.65,50.16],RLF:['Ras Laffan',25.93,51.55],CPT:['Cape Town',-33.9,18.4]};
+const rev=a=>a.slice().reverse();
+const SCS=[[1.4,104.3],[4,106.5],[8.5,108.5],[15,112.5],[21.5,117.5],[25,120.5]];
+const MAL=[[5.5,80.5],[5.5,86],[6,92],[5.9,97.4],[4.3,99.4],[2.6,101.3],[1.2,103.2],[1.15,103.7]];
+const YS=[[29,123.5],[33,123.5],[35.5,121.5]];
+const INDS=[[8,73],[11,60],[12,52],[12.4,45.3],[12.5,43.3],[15,41.5],[20,38.5],[25.5,35.7],[28.3,33.3],[30,32.55],[31.3,32.35]];
+const MED=[[33,28],[34.5,20],[36,13],[37.3,8],[37.7,3],[36.4,-3.5],[35.95,-5.7],[36.5,-9.5],[43,-10],[47,-6.5]];
+const CHN=[[49.3,-5.5],[50.2,-1.5],[50.6,0.5],[51.2,1.8]];
+const CAPE=[[-5,68],[-20,55],[-28,48],[-30,40],[-35.5,28],[-35.8,20.5],[-33,13],[-20,8],[-5,2],[3,-5],[15,-21],[25,-20],[36,-13],[43,-11],[47,-6.5]];
+const GULF=[[27.3,50.8],[26.6,52.5],[26.2,54.5],[26.6,56.5],[24.5,58.8],[15,66],[7,75],[5.5,80.5]].concat(MAL,SCS,YS);
+const ROUTES={
+SUEZ:{f:'SHA',t:'RTM',via:'Suez Canal',m:rev(SCS).concat(rev(MAL),INDS,MED,CHN)},
+CAPE:{f:'SHA',t:'RTM',via:'Cape of Good Hope',m:rev(SCS).concat(rev(MAL),CAPE,CHN)},
+TP:{f:'SHA',t:'LAX',via:'Trans-Pacific',m:[[31.5,127.5],[30.5,132],[33,141],[42,175],[47,-170],[47,-150],[44,-135],[38,-126],[33.5,-118.6]]},
+TA:{f:'RTM',t:'NYC',via:'North Atlantic',m:[[51.2,1.8],[50.6,.5],[50.2,-1.5],[49.3,-5.5],[48,-20],[43,-45],[39.5,-68],[40.1,-73.5]]},
+SANT:{f:'SSZ',t:'RTM',via:'South Atlantic',m:[[-25,-43],[-10,-33],[5,-27],[20,-22],[36,-15],[43,-10],[47,-6.5]].concat(CHN)},
+GULF:{f:'RTA',t:'TAO',via:'Strait of Malacca',m:GULF},
+LNG:{f:'RLF',t:'TAO',via:'Strait of Malacca',m:GULF.slice(1)},
+HEDL:{f:'PHE',t:'TAO',via:'Indonesian archipelago',m:[[-19,118],[-10,119],[-3,118.3],[2,119.5],[8,120.5],[15,119],[20,119.5],[24,119.5],[25,120.5]].concat(YS)}};
+const SP=[['Orion Meridian','SUEZ',1,'box',23800,.12],['Vela Harmony','SUEZ',1,'box',21400,.47],['Atlas Crescent','SUEZ',1,'box',18900,.78],['Jade Meridian','SUEZ',1,'box',20500,.92],['Northern Tide','SUEZ',-1,'box',20100,.3],['Kestrel Bay','SUEZ',-1,'box',17600,.62],
+['Lyra Dawn','CAPE',1,'box',22300,.2],['Pacific Ember','CAPE',1,'box',19400,.55],['Horn Courier','CAPE',1,'box',16800,.97],['Cobalt Wave','CAPE',-1,'box',21000,.4],['Solstice Run','CAPE',-1,'box',18200,.85],
+['Aurora Gate','TP',1,'box',14800,.1],['Harbor Light','TP',1,'box',13900,.45],['Ridge Pioneer','TP',1,'box',15200,.8],['Cedar Spirit','TP',-1,'box',9800,.25],['Prairie Wind','TP',-1,'soy',68000,.65],
+['Albatross','TA',1,'box',9100,.35],['Marlin Trader','TA',-1,'box',8400,.7],['Santos Pride','SANT',1,'soy',68000,.2],['Tupi Voyager','SANT',1,'soy',62000,.7],
+['Gulf Titan','GULF',1,'oil',2000000,.15],['Desert Pearl','GULF',1,'oil',2000000,.52],['Falcon Crude','GULF',1,'oil',1900000,.85],['Qatar Aurora','LNG',1,'lng',76000,.35],['Pearl Mirage','LNG',1,'lng',74000,.75],
+['Iron Horizon','HEDL',1,'ore',210000,.18],['Red Cliff','HEDL',1,'ore',200000,.5],['Pilbara Star','HEDL',1,'ore',220000,.83]];
+const SPEED={box:21,oil:14,lng:17,ore:12.5,soy:13},DWELL=48;
+
+// ---------- paths ----------
+function slerp(a,b,t,ang){if(ang<1e-6)return a.clone();const s=Math.sin(ang);return a.clone().multiplyScalar(Math.sin((1-t)*ang)/s).add(b.clone().multiplyScalar(Math.sin(t*ang)/s))}
+function buildPath(rt,dir){
+  let w=[PORTS[rt.f].slice(1,3)].concat(rt.m,[PORTS[rt.t].slice(1,3)]);if(dir<0)w=rev(w);
+  const vs=[];
+  for(let i=0;i<w.length-1;i++){const a=ll(w[i][0],w[i][1],1),b=ll(w[i+1][0],w[i+1][1],1),ang=a.angleTo(b),n=Math.max(1,Math.ceil(ang/(1.2*D)));
+    for(let k=0;k<n;k++)vs.push(slerp(a,b,k/n,ang))}
+  const e=w[w.length-1];vs.push(ll(e[0],e[1],1));
+  const cum=[0];for(let i=1;i<vs.length;i++)cum.push(cum[i-1]+vs[i].angleTo(vs[i-1])*NM);
+  return{vs,cum,len:cum[cum.length-1]};
+}
+const latlon=v=>[Math.asin(v.y)/D,Math.atan2(v.x,v.z)/D];
+const ships=SP.map((s,i)=>{
+  const rt=ROUTES[s[1]],P=buildPath(rt,s[2]),cg=CG[s[3]],sp=SPEED[s[3]],dur=P.len/sp,col=new THREE.Color(cg.c);
+  const pos=new Float32Array(P.vs.length*3);P.vs.forEach((v,j)=>pos.set([v.x*R*1.004,v.y*R*1.004,v.z*R*1.004],j*3));
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const g2=new THREE.BufferGeometry();g2.setAttribute('position',g.attributes.position);
+  const past=new THREE.Line(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.7}));
+  const fut=new THREE.Line(g2,new THREE.LineDashedMaterial({color:0xffffff,dashSize:.1,gapSize:.08,transparent:true,opacity:.55}));
+  past.frustumCulled=fut.frustumCulled=false;fut.computeLineDistances();fut.visible=false;
+  return{i,name:s[0],rk:s[1],dir:s[2],ck:s[3],qty:s[4],ph:s[5],P,sp,dur,cyc:dur+DWELL,rt,cg,col,past,fut,pos:new V3(),idx:0,prog:0,state:'sea',value:s[4]*cg.p,tons:s[4]*cg.t,
+    from:PORTS[s[2]>0?rt.f:rt.t][0],to:PORTS[s[2]>0?rt.t:rt.f][0],dep:0,eta:0,hd:0,on:true};
+});
+
+// ---------- scene ----------
+const stage=$('#stage'),renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));stage.appendChild(renderer.domElement);
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(40,1,.1,200),group=new THREE.Group();scene.add(group);
+const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+const rnd=Math.random;
+function makeDay(){
+  const W=2048,H=1024,X=o=>(o+180)/360*W,Y=a=>(90-a)/180*H,cv=mk(W,H),c=cv.getContext('2d');
+  const og=c.createLinearGradient(0,0,0,H);og.addColorStop(0,'#0c3052');og.addColorStop(.5,'#0a3560');og.addColorStop(1,'#0b2f55');c.fillStyle=og;c.fillRect(0,0,W,H);
+  for(let i=0;i<260;i++){const x=rnd()*W,y=rnd()*H,r=30+rnd()*110,g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,rnd()<.5?'rgba(4,20,44,.22)':'rgba(30,110,170,.14)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(x-r,y-r,2*r,2*r)}
+  const m=mk(W,H),mc=m.getContext('2d');mc.fillStyle='#fff';
+  const poly=(x,p)=>{x.beginPath();for(let i=0;i<p.length;i+=2)x[i?'lineTo':'moveTo'](X(p[i]),Y(p[i+1]));x.closePath();x.fill()};
+  LAND.forEach(p=>poly(mc,p));mc.fillRect(0,Y(-73),W,H);mc.globalCompositeOperation='destination-out';WATER.forEach(p=>poly(mc,p));
+  [[16,.55],[48,.3]].forEach(([k,a])=>{const s=mk(W/k,H/k),sc=s.getContext('2d');sc.drawImage(m,0,0,W/k,H/k);sc.globalCompositeOperation='source-in';sc.fillStyle='#2fa8c8';sc.fillRect(0,0,W,H);c.globalAlpha=a;c.drawImage(s,0,0,W,H)});c.globalAlpha=1;
+  let ig=c.createLinearGradient(0,0,0,Y(70));ig.addColorStop(0,'rgba(236,242,248,.9)');ig.addColorStop(1,'rgba(236,242,248,0)');c.fillStyle=ig;c.fillRect(0,0,W,Y(70));
+  ig=c.createLinearGradient(0,Y(-60),0,Y(-73));ig.addColorStop(0,'rgba(236,242,248,0)');ig.addColorStop(1,'rgba(236,242,248,.8)');c.fillStyle=ig;c.fillRect(0,Y(-73),W,Y(-60)-Y(-73));c.fillStyle=ig;c.fillRect(0,Y(-60),W,Y(-73)-Y(-60));
+  const l=mk(W,H),lc=l.getContext('2d'),lg=lc.createLinearGradient(0,0,0,H);
+  [[0,'#eef3f6'],[.05,'#e4eaee'],[.1,'#8c9486'],[.16,'#2f4f31'],[.25,'#3d6636'],[.31,'#4e7138'],[.4,'#3a6a3a'],[.5,'#2e6a38'],[.58,'#5a7236'],[.66,'#6d7a3e'],[.78,'#3e6a43'],[.9,'#7d8a80'],[.91,'#f0f4f6'],[1,'#f2f6f8']].forEach(s=>lg.addColorStop(s[0],s[1]));
+  lc.fillStyle=lg;lc.fillRect(0,0,W,H);
+  const px=W/360;
+  [[5,24,26,8,'#c9a465',.9],[46,24,10,8,'#c8a566',.9],[60,34,12,6,'#a58b5a',.7],[102,42,14,5,'#b59b6a',.7],[88,32,10,4,'#9a8b78',.8],[133,-25,14,7,'#c08a55',.9],[-110,34,9,5,'#b58f5d',.7],[-69,-44,5,7,'#8f8460',.6],[22,-23,8,5,'#b8956a',.7],[44,8,5,4,'#b89868',.7],
+   [-62,-4,12,7,'#1f5a2e',.8],[22,0,9,6,'#1d5a2c',.8],[105,15,8,8,'#2a6a34',.6],[78,20,6,6,'#7c8a45',.5],[95,60,30,6,'#24452c',.6],[-40,72,15,8,'#f2f6f8',1],[-70,-20,3,14,'#8a7a68',.6],[-112,45,4,10,'#7a7a64',.5],[-82,36,8,8,'#3f6e3a',.4],[10,48,12,6,'#4a7a40',.4],[112,30,8,7,'#5a8040',.5]].forEach(([lo,la,rx,ry,col,a])=>{
+    lc.save();lc.translate(X(lo),Y(la));lc.scale(rx/ry,1);const r=ry*px,g=lc.createRadialGradient(0,0,0,0,0,r);g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');lc.globalAlpha=a;lc.fillStyle=g;lc.fillRect(-r*3,-r,r*6,2*r);lc.restore()});
+  lc.globalAlpha=1;
+  for(let i=0;i<34000;i++){lc.fillStyle=rnd()<.5?'rgba(0,0,0,'+(.04+rnd()*.08)+')':'rgba(255,255,230,'+(.02+rnd()*.05)+')';lc.fillRect(rnd()*W,rnd()*H,1+rnd()*3,1+rnd()*2)}
+  lc.globalCompositeOperation='destination-in';lc.drawImage(m,0,0);c.drawImage(l,0,0);
+  return cv;
+}
+const LT=[[40.7,-74,1.2],[34,-118.2,1.1],[41.9,-87.6,1],[29.8,-95.4,.8],[33.4,-112,.6],[25.8,-80.2,.7],[37.8,-122.4,.8],[47.6,-122.3,.6],[39.7,-105,.5],[33.7,-84.4,.7],[42.4,-71,.7],[38.9,-77,.7],[32.8,-96.8,.8],[43.7,-79.4,.7],[19.4,-99.1,1],[4.7,-74.1,.7],[-12,-77,.7],[-33.4,-70.7,.6],[-34.6,-58.4,.9],[-23.5,-46.6,1.1],[-22.9,-43.2,.8],[51.5,-.1,1],[48.9,2.3,.9],[52.5,13.4,.7],[50.1,8.7,.6],[52.4,4.9,.6],[40.4,-3.7,.7],[41.9,12.5,.7],[59.3,18.1,.4],[55.8,37.6,1],[59.9,30.3,.6],[41,29,1],[30,31.2,1],[6.5,3.4,.9],[-1.3,36.8,.5],[-26.2,28,.7],[-33.9,18.4,.4],[25.2,55.3,.7],[24.7,46.7,.6],[35.7,51.4,.8],[24.9,67,.9],[28.6,77.2,1.1],[19.1,72.9,1.1],[13,77.6,.8],[22.6,88.4,.9],[23.8,90.4,.9],[13.8,100.5,.8],[10.8,106.7,.7],[1.35,103.8,.8],[-6.2,106.8,1],[14.6,121,.8],[22.3,114.2,.9],[22.5,114,1],[23.1,113.3,.9],[31.2,121.5,1.2],[39.9,116.4,1.1],[30.6,114.3,.7],[30.6,104,.6],[34.3,108.9,.6],[37.6,127,1.1],[35.7,139.7,1.3],[34.7,135.5,.9],[35.2,136.9,.6],[25,121.5,.7],[-33.9,151.2,.7],[-37.8,145,.6],[-31.9,115.9,.4],[-36.8,174.8,.4],[36.1,120.4,.6],[29.9,121.5,.6],[3.1,101.7,.7],[50.4,30.5,.5],[45.5,-73.6,.5],[49.3,-123.1,.4]];
+function makeNight(){
+  const W=2048,H=1024,cv=mk(W,H),c=cv.getContext('2d');c.fillStyle='#000';c.fillRect(0,0,W,H);c.globalCompositeOperation='lighter';
+  LT.forEach(([la,lo,w])=>{for(let k=0;k<Math.round(10+w*14);k++){const x=(lo+180)/360*W+(rnd()+rnd()+rnd()-1.5)*w*26,y=(90-la)/180*H+(rnd()+rnd()+rnd()-1.5)*w*13,r=2+rnd()*w*5,g=c.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,'rgba(255,210,140,'+(.35+rnd()*.4)+')');g.addColorStop(1,'rgba(255,160,60,0)');c.fillStyle=g;c.fillRect(x-r,y-r,2*r,2*r)}});
+  return cv;
+}
+function makeCloud(){
+  const W=1024,H=512,cv=mk(W,H),c=cv.getContext('2d');c.fillStyle='#000';c.fillRect(0,0,W,H);
+  for(let i=0;i<520;i++){const lat=(rnd()<.55?(rnd()<.5?1:-1)*(35+rnd()*30):(rnd()-.5)*36),y=(90-lat)/180*H,x=rnd()*W,r=14+rnd()*56;
+    for(const dx of[-W,0,W]){const g=c.createRadialGradient(x+dx,y,0,x+dx,y,r);g.addColorStop(0,'rgba(255,255,255,'+(.12+rnd()*.3)+')');g.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=g;c.fillRect(x+dx-r,y-r,2*r,2*r)}}
+  return cv;
+}
+const tex=cv=>{const t=new THREE.CanvasTexture(cv);t.generateMipmaps=false;t.minFilter=t.magFilter=THREE.LinearFilter;return t};
+const GU={uDay:{value:tex(makeDay())},uNight:{value:tex(makeNight())},uCloud:{value:tex(makeCloud())},uSun:{value:new V3(1,0,0)},uCam:{value:new V3(0,0,20)},uTime:{value:0}};
+const globe=new THREE.Mesh(new THREE.SphereGeometry(R,128,96),new THREE.ShaderMaterial({uniforms:GU,
+  vertexShader:'varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:'precision highp float;uniform sampler2D uDay,uNight,uCloud;uniform vec3 uSun,uCam;uniform float uTime;varying vec3 vP;void main(){vec3 n=normalize(vP);float lon=atan(n.x,n.z),lat=asin(clamp(n.y,-1.,1.));vec2 uv=vec2(lon/6.2831853+.5,lat/3.1415927+.5);vec3 day=texture2D(uDay,uv).rgb,nl=texture2D(uNight,uv).rgb;float cl=texture2D(uCloud,vec2(fract(uv.x+uTime*.0004),uv.y)).r;vec3 s=normalize(uSun);float d=dot(n,s),lit=smoothstep(-.1,.25,d);float oc=step(day.r+.015,day.b)*step(day.g,day.b);vec3 v=normalize(uCam-vP),h=normalize(s+v);float sp=pow(max(dot(n,h),0.),90.)*oc*lit*.9;vec3 col=day*(.035+1.05*lit);col=mix(col,vec3(.92,.95,1.)*(.05+lit),cl*.55);col+=vec3(1.,.95,.85)*sp;col+=nl*(1.-lit)*(1.-cl*.6)*1.6;float fr=pow(1.-max(dot(n,v),0.),3.);col+=vec3(.25,.5,1.)*fr*(.25+.9*lit);float tw=smoothstep(-.15,0.,d)*(1.-smoothstep(0.,.2,d));col+=vec3(.5,.2,.05)*tw*.15;gl_FragColor=vec4(col,1.);}'}));
+group.add(globe);
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(R*1.09,64,64),new THREE.ShaderMaterial({
+  vertexShader:'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:'varying vec3 vN;void main(){float i=pow(max(.66-dot(vN,vec3(0.,0.,1.)),0.),3.);gl_FragColor=vec4(.3,.5,1.,1.)*i*1.5;}',
+  side:THREE.BackSide,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false})));
+const US={s:{value:1}};
+const VS='attribute vec3 aColor;attribute float aSize;uniform float uScale;varying vec3 vC;void main(){vC=aColor;vec4 m=modelViewMatrix*vec4(position,1.);gl_PointSize=max(1.,aSize*uScale/-m.z);gl_Position=projectionMatrix*m;}';
+const FS='varying vec3 vC;void main(){float d=length(gl_PointCoord-.5);if(d>.5)discard;gl_FragColor=vec4(vC,pow(1.-d*2.,.7));}';
+function pts(pos,col,siz,add){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('aColor',new THREE.BufferAttribute(col,3));g.setAttribute('aSize',new THREE.BufferAttribute(siz,1));
+  const p=new THREE.Points(g,new THREE.ShaderMaterial({uniforms:{uScale:US.s},vertexShader:VS,fragmentShader:FS,transparent:true,depthWrite:false,blending:add?THREE.AdditiveBlending:THREE.NormalBlending}));p.frustumCulled=false;return p}
+{const n=2200,p=new Float32Array(n*3),c=new Float32Array(n*3),s=new Float32Array(n);for(let i=0;i<n;i++){const v=new V3(rnd()-.5,rnd()-.5,rnd()-.5).normalize().multiplyScalar(80),k=.25+rnd()*.6;p.set([v.x,v.y,v.z],i*3);c.set([k,k,k*1.1],i*3);s.set([.1+rnd()*.14],i)}scene.add(pts(p,c,s,true))}
+// ports
+const PK=Object.keys(PORTS);
+{const p=new Float32Array(PK.length*3),c=new Float32Array(PK.length*3),s=new Float32Array(PK.length);
+ PK.forEach((k,i)=>{const o=PORTS[k],v=ll(o[1],o[2],R*1.003);p.set([v.x,v.y,v.z],i*3);c.set([1,.81,.54],i*3);s.set([o[3]?.1+o[3]*.0016:.075],i)});group.add(pts(p,c,s,false))}
+const plab=PK.map(k=>{const d=document.createElement('div');d.className='pl';d.textContent=PORTS[k][0];$('#labels').appendChild(d);return d});
+// ships
+ships.forEach(s=>{group.add(s.past);group.add(s.fut)});
+const sp=new Float32Array(ships.length*3),sc=new Float32Array(ships.length*3),ss=new Float32Array(ships.length).fill(.17);
+const shipPts=pts(sp,sc,ss,false);group.add(shipPts);
+const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1,48),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,side:THREE.DoubleSide,depthWrite:false}));ring.visible=false;group.add(ring);
+
+// ---------- clock + positions ----------
+let T=Date.now(),speed=21600,paused=false,sel=null,selPort=null,follow=false;
+function sunDir(t){const d=new Date(t),doy=(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())-Date.UTC(d.getUTCFullYear(),0,0))/864e5,
+  dec=-23.44*D*Math.cos(2*Math.PI/365*(doy+10)),hr=d.getUTCHours()+d.getUTCMinutes()/60+d.getUTCSeconds()/3600,lon=-(hr-12)*15*D;
+  return new V3(Math.cos(dec)*Math.sin(lon),Math.sin(dec),Math.cos(dec)*Math.cos(lon))}
+function place(s){
+  const h=T/36e5,ph=((h/s.cyc+s.ph)%1)*s.cyc;let d;
+  if(ph<s.dur){d=ph*s.sp;s.state='sea'}else{d=s.len=s.P.len;s.state='port'}
+  s.dep=T-Math.min(ph,s.dur+DWELL)*36e5;s.eta=s.dep+s.dur*36e5;s.d=d;
+  const c=s.P.cum;let lo=0,hi=c.length-1;while(hi-lo>1){const m=(lo+hi)>>1;c[m]<=d?lo=m:hi=m}
+  const f=c[hi]>c[lo]?Math.min(1,Math.max(0,(d-c[lo])/(c[hi]-c[lo]))):0,a=s.P.vs[lo],b=s.P.vs[hi];
+  const v=a.clone().lerp(b,f).normalize();s.idx=lo+(f>.5?1:0);s.vec=v;s.pos.copy(v).multiplyScalar(R*1.007);
+  const[la1,lo1]=latlon(a),[la2,lo2]=latlon(b),dl=(lo2-lo1)*D,y=Math.sin(dl)*Math.cos(la2*D),x=Math.cos(la1*D)*Math.sin(la2*D)-Math.sin(la1*D)*Math.cos(la2*D)*Math.cos(dl);
+  s.hd=(Math.atan2(y,x)/D+360)%360;s.prog=d/s.P.len;
+  s.past.geometry.setDrawRange(0,Math.max(2,s.idx+1));s.fut.geometry.setDrawRange(s.idx,s.P.vs.length-s.idx);
+}
+const colA=sc.constructor;
+function paint(){
+  ships.forEach((s,i)=>{const k=s.on?1:.1;sc.set([s.col.r*k,s.col.g*k,s.col.b*k],i*3);ss[i]=s===sel?.3:.17;s.past.visible=s.on;s.past.material.opacity=s===sel?1:.5});
+  shipPts.geometry.attributes.aColor.needsUpdate=true;shipPts.geometry.attributes.aSize.needsUpdate=true;
+}
+
+// ---------- HUD ----------
+const money=v=>v>=1e9?'$'+(v/1e9).toFixed(2)+'B':'$'+Math.round(v/1e6).toLocaleString()+'M';
+const utc=t=>new Date(t).toISOString().slice(0,16).replace('T',' ')+' UTC';
+const fmtLL=(a,o)=>Math.abs(a).toFixed(2)+'°'+(a>=0?'N':'S')+' '+Math.abs(o).toFixed(2)+'°'+(o>=0?'E':'W');
+function hud(){
+  const on=ships.filter(s=>s.on),sea=on.filter(s=>s.state==='sea'),val=sea.reduce((a,s)=>a+s.value,0),tons=sea.reduce((a,s)=>a+s.tons,0);
+  $('#kpi').innerHTML=[['Vessels tracked',on.length+' / '+ships.length],['Underway',sea.length],['Cargo afloat',money(val)],['Tonnage afloat',(tons/1e6).toFixed(2)+' Mt']].map(k=>'<div class="k"><small>'+k[0]+'</small><b>'+k[1]+'</b></div>').join('');
+  const tot=ships.reduce((a,s)=>a+s.value,0);
+  $('#cg').innerHTML=Object.keys(CG).map(k=>{const g=CG[k],l=ships.filter(s=>s.ck===k),v=l.reduce((a,s)=>a+s.value,0),off=!l[0].on;
+    return '<button class="cg'+(off?' off':'')+'" data-k="'+k+'" aria-pressed="'+!off+'"><div class="t"><span><i style="background:'+g.c+'"></i>'+g.n+' · '+l.length+'</span><em>'+money(v)+'</em></div><div class="tr"><i style="width:'+(v/tot*100)+'%;background:'+g.c+'"></i></div></button>'}).join('');
+  const su=ships.filter(s=>s.rk==='SUEZ').length,ca=ships.filter(s=>s.rk==='CAPE').length;
+  $('#lane').innerHTML='<div class="tr" style="height:8px"><i style="width:'+su/(su+ca)*100+'%;background:#7aa2ff;float:left"></i><i style="width:'+ca/(su+ca)*100+'%;background:#ff8a4f;float:left"></i></div><div class="sm" style="margin:6px 0 0"><span style="color:#7aa2ff">Suez '+su+'</span> · <span style="color:#ff8a4f">Cape '+ca+'</span> in this fleet. Industry-wide, about 63% of Far East–Europe container capacity was back on Suez routings by mid-October 2026 (Alphaliner). The Cape detour adds roughly 4,000 nm.</div>';
+  $('#clock').textContent=utc(T);
+  if(sel)cardShip();else if(selPort)cardPort();
+}
+function cardShip(){
+  const s=sel,[la,lo]=latlon(s.vec),pct=(s.prog*100).toFixed(1),dayv=s.value/((s.dur)/24);
+  $('#card').innerHTML='<button id="x" aria-label="Close">×</button><div class="tag" style="color:'+s.cg.c+'">'+s.cg.n+' · '+esc(s.rt.via)+'</div><h2>'+esc(s.name)+'</h2><div class="rt">'+esc(s.from)+' → '+esc(s.to)+'</div>'
+  +'<div class="pb"><i style="width:'+pct+'%"></i></div><div class="sm">'+pct+'% · '+Math.round(s.d).toLocaleString()+' of '+Math.round(s.P.len).toLocaleString()+' nm</div><dl>'
+  +'<dt>Status</dt><dd>'+(s.state==='sea'?'Underway':'Discharging at '+esc(s.to))+'</dd>'
+  +'<dt>Cargo</dt><dd>'+s.qty.toLocaleString()+' '+s.cg.u+' of '+s.cg.n.toLowerCase()+'</dd>'
+  +'<dt>Est. value</dt><dd>'+money(s.value)+'</dd><dt>Price basis</dt><dd>'+s.cg.pl+'</dd>'
+  +'<dt>Position</dt><dd>'+fmtLL(la,lo)+'</dd><dt>Heading / speed</dt><dd>'+Math.round(s.hd)+'° · '+(s.state==='sea'?s.sp:0)+' kn</dd>'
+  +'<dt>Departed</dt><dd>'+utc(s.dep)+'</dd><dt>Arrives</dt><dd>'+utc(s.eta)+'</dd><dt>Transit time</dt><dd>'+(s.dur/24).toFixed(1)+' days</dd>'
+  +'<dt>Value in motion</dt><dd>'+money(dayv)+' per day at sea</dd></dl>'
+  +'<div class="lg"><span><i style="border-top:2px solid '+s.cg.c+'"></i>Past track</span><span><i style="border-top:2px dashed #aab"></i>Planned</span></div>'
+  +'<button class="fl" id="fl" aria-pressed="'+follow+'">Follow vessel</button>';
+}
+function cardPort(){
+  const k=selPort,o=PORTS[k],bound=ships.filter(s=>s.rt.f===k||s.rt.t===k);
+  $('#card').innerHTML='<button id="x" aria-label="Close">×</button><div class="tag" style="color:var(--gold)">Port</div><h2>'+esc(o[0])+'</h2><div class="rt">'+fmtLL(o[1],o[2])+'</div><dl><dt>2025 container volume</dt><dd>'+(o[3]?o[3].toFixed(2)+' million TEU':'Not loaded here')+'</dd><dt>Vessels calling</dt><dd>'+(bound.length?bound.map(s=>esc(s.name)).join(', '):'None in this fleet')+'</dd></dl>';
+}
+function pick(s,p){sel=s;selPort=p||null;ring.visible=!!s;$('#card').hidden=!(s||p);follow=!!s;if(s||p){const t=s?s.vec:ll(PORTS[p][1],PORTS[p][2],1);const[la,lo]=latlon(t);fly={x:la*D,y:-lo*D,z:s?11:11.5}}paint();hud()}
+$('#cg').addEventListener('click',e=>{const b=e.target.closest('.cg');if(!b)return;const k=b.dataset.k,on=ships.find(s=>s.ck===k).on;ships.forEach(s=>{if(s.ck===k)s.on=!on});if(sel&&!sel.on)pick(null);paint();hud()});
+$('#card').addEventListener('click',e=>{if(e.target.id==='x')pick(null);if(e.target.id==='fl'){follow=!follow;if(follow&&sel)fly={x:latlon(sel.vec)[0]*D,y:-latlon(sel.vec)[1]*D,z:11};hud()}});
+$('#pp').onclick=e=>{paused=!paused;e.target.textContent=paused?'Play':'Pause'};
+document.querySelectorAll('#bar [data-s]').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;document.querySelectorAll('#bar [data-s]').forEach(x=>x.classList.toggle('on',x===b))});
+
+// ---------- camera + interaction ----------
+let rx=.5,ry=-.35,tz=17,fly=null,drag=false,idle=true,dn=null;group.rotation.set(rx,ry,0);cam.position.z=tz;
+function resize(){renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();US.s.value=innerHeight*renderer.getPixelRatio()/(2*Math.tan(cam.fov*Math.PI/360));
+  cam.setViewOffset(innerWidth,innerHeight,innerWidth>760?innerWidth*.06:0,innerWidth>760?0:-innerHeight*.08,innerWidth,innerHeight)}
+addEventListener('resize',resize);
+const v3=new V3(),cp=new V3();
+let last=performance.now(),hudT=0;
+function frame(now){
+  const dt=Math.min(.1,(now-last)/1e3);last=now;
+  if(!paused)T+=dt*1e3*speed;GU.uTime.value=now/1e3;GU.uSun.value.copy(sunDir(T));
+  ships.forEach(place);
+  ships.forEach((s,i)=>sp.set([s.pos.x,s.pos.y,s.pos.z],i*3));shipPts.geometry.attributes.position.needsUpdate=true;
+  if(fly){let dy=fly.y-group.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));group.rotation.y+=dy*.07;group.rotation.x+=(fly.x-group.rotation.x)*.07;tz+=(fly.z-tz)*.05;if(!follow&&Math.abs(dy)<.003&&Math.abs(tz-fly.z)<.05)fly=null}
+  if(follow&&sel){const[la,lo]=latlon(sel.vec);fly={x:la*D,y:-lo*D,z:11}}
+  else if(idle&&!drag&&!sel&&!selPort)group.rotation.y+=Math.cos(now/4000)*.0004;
+  cam.position.z=innerWidth<760?tz+3:tz;
+  group.updateMatrixWorld();globe.worldToLocal(cp.copy(cam.position));GU.uCam.value.copy(cp);
+  if(sel){ring.position.copy(sel.pos);ring.quaternion.setFromUnitVectors(new V3(0,0,1),sel.pos.clone().normalize());const k=(now/1100)%1;ring.scale.setScalar(.08+k*.22);ring.material.opacity=1-k}
+  const w=innerWidth,h=innerHeight,cpw=cam.position;
+  PK.forEach((k,i)=>{const o=PORTS[k];v3.copy(ll(o[1],o[2],R)).applyMatrix4(group.matrixWorld);const vis=v3.dot(cpw)>R*R*1.02&&(o[3]||tz<14);const l=plab[i];l.style.display=vis?'':'none';
+    if(vis){v3.project(cam);l.style.transform='translate('+((v3.x*.5+.5)*w+6)+'px,'+((-v3.y*.5+.5)*h-5)+'px)'}});
+  renderer.render(scene,cam);
+  if(now-hudT>400){hudT=now;hud()}
+  requestAnimationFrame(frame);
+}
+stage.addEventListener('pointerdown',e=>{dn={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,m:0};drag=true;idle=false;stage.setPointerCapture(e.pointerId)});
+stage.addEventListener('pointermove',e=>{if(!dn)return;const dx=e.clientX-dn.lx,dy=e.clientY-dn.ly;dn.lx=e.clientX;dn.ly=e.clientY;dn.m+=Math.abs(dx)+Math.abs(dy);
+  if(dn.m>5){fly=null;follow=false}const k=.004*tz/17;group.rotation.y+=dx*k;group.rotation.x=Math.max(-1.4,Math.min(1.4,group.rotation.x+dy*k))});
+stage.addEventListener('pointerup',e=>{drag=false;
+  if(dn&&dn.m<6){let best=null,bd=26,bp=null;const w=innerWidth,h=innerHeight;
+    const test=(wp,o,port)=>{v3.copy(wp).applyMatrix4(group.matrixWorld);if(v3.dot(cam.position)<R*R)return;v3.project(cam);const d=Math.hypot((v3.x*.5+.5)*w-e.clientX,(-v3.y*.5+.5)*h-e.clientY);if(d<bd){bd=d;if(port){bp=o;best=null}else{best=o;bp=null}}};
+    PK.forEach(k=>test(ll(PORTS[k][1],PORTS[k][2],R),k,true));ships.forEach(s=>{if(s.on)test(s.pos,s,false)});
+    if(best)pick(best);else if(bp)pick(null,bp);else pick(null)}
+  dn=null});
+stage.addEventListener('wheel',e=>{e.preventDefault();tz=Math.max(8,Math.min(30,tz+e.deltaY*.015));if(fly)fly.z=tz},{passive:false});
+
+resize();ships.forEach(place);paint();hud();
+pick(ships[0]);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
